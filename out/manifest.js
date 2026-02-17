@@ -15,31 +15,15 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.readManifest = readManifest;
-exports.ensureManifestDir = ensureManifestDir;
-exports.writeManifest = writeManifest;
-exports.addEntry = addEntry;
-exports.removeEntry = removeEntry;
-exports.updateEntry = updateEntry;
-exports.getEmptyManifest = getEmptyManifest;
+exports.getEmptyManifest = exports.updateEntry = exports.removeEntry = exports.addEntry = exports.writeManifest = exports.ensureManifestDir = exports.readManifest = void 0;
 const path = __importStar(require("path"));
 const vscode = __importStar(require("vscode"));
 const types_1 = require("./types");
@@ -65,34 +49,40 @@ async function readManifest(root) {
         return null;
     }
 }
+exports.readManifest = readManifest;
 async function ensureManifestDir(root) {
     const dirPath = path.join(root.uri.fsPath, types_1.CODEMINT_DIR);
     await vscode.workspace.fs.createDirectory(vscode.Uri.file(dirPath));
     return dirPath;
 }
+exports.ensureManifestDir = ensureManifestDir;
 async function writeManifest(root, manifest) {
     await ensureManifestDir(root);
     const manifestPath = path.join(root.uri.fsPath, types_1.MANIFEST_FILE);
     const content = JSON.stringify(manifest, null, 2);
     await vscode.workspace.fs.writeFile(vscode.Uri.file(manifestPath), Buffer.from(content, "utf8"));
 }
+exports.writeManifest = writeManifest;
 function addEntry(manifest, entry) {
     const next = { ...manifest, installed: manifest.installed.filter((e) => e.catalogId !== entry.catalogId) };
     next.installed.push(entry);
     return next;
 }
+exports.addEntry = addEntry;
 function removeEntry(manifest, catalogId) {
     return {
         ...manifest,
         installed: manifest.installed.filter((e) => e.catalogId !== catalogId),
     };
 }
+exports.removeEntry = removeEntry;
 function updateEntry(manifest, catalogId, upd) {
     return {
         ...manifest,
         installed: manifest.installed.map((e) => e.catalogId === catalogId ? { ...e, ...upd } : e),
     };
 }
+exports.updateEntry = updateEntry;
 function getEmptyManifest() {
     return {
         version: types_1.MANIFEST_VERSION,
@@ -100,4 +90,5 @@ function getEmptyManifest() {
         installed: [],
     };
 }
+exports.getEmptyManifest = getEmptyManifest;
 //# sourceMappingURL=manifest.js.map
