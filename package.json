@@ -1,0 +1,96 @@
+{
+  "name": "codemint",
+  "displayName": "CodeMint",
+  "description": "Sync rules and skills from CodeMintAI into your workspace. Works with Cursor, Cline, Windsurf, Continue, Copilot, Claude, Codex.",
+  "version": "0.1.0",
+  "publisher": "codemint",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codemint/code-mint-ai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/codemint/code-mint-ai/issues"
+  },
+  "homepage": "https://github.com/codemint/code-mint-ai#readme",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "codemint.login", "title": "CodeMint: Login" },
+      { "command": "codemint.logout", "title": "CodeMint: Logout" },
+      { "command": "codemint.add", "title": "CodeMint: Add Rule/Skill" },
+      { "command": "codemint.sync", "title": "CodeMint: Sync" },
+      { "command": "codemint.suggest", "title": "CodeMint: Suggest" },
+      { "command": "codemint.list", "title": "CodeMint: List Installed" },
+      { "command": "codemint.remove", "title": "CodeMint: Remove" },
+      { "command": "codemint.setBaseUrl", "title": "CodeMint: Set app URL" },
+      { "command": "codemint.openSettings", "title": "CodeMint: Open Settings" }
+    ],
+    "configuration": {
+      "title": "CodeMint",
+      "properties": {
+        "codemint.baseUrl": {
+          "type": "string",
+          "default": "https://codemint.app",
+          "description": "CodeMint app URL (used for login and API)."
+        },
+        "codemint.autoSync": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run sync on workspace open when manifest exists."
+        },
+        "codemint.toolOverrides": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "If non-empty, use these tools instead of auto-detect (e.g. [\"cursor\"])."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codemint-sidebar",
+          "title": "CodeMint",
+          "icon": "$(symbol-misc)"
+        }
+      ]
+    },
+    "views": {
+      "codemint-sidebar": [
+        {
+          "id": "codemint.explore",
+          "name": "Explore"
+        },
+        {
+          "id": "codemint.installed",
+          "name": "Installed"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        { "command": "codemint.setBaseUrl", "when": "view == codemint.explore", "group": "navigation" },
+        { "command": "codemint.openSettings", "when": "view == codemint.installed", "group": "navigation" }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p .",
+    "watch": "tsc -w -p ."
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.1",
+    "typescript": "^5.3.0"
+  }
+}
