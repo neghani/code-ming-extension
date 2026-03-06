@@ -2,6 +2,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { readManifest, getEmptyManifest } from "./manifest";
 import type { ManifestEntry } from "./types";
+import { errorMessage, logError, logInfo } from "./logger";
 
 type TreeItem = ManifestEntry | { kind: "group"; label: string; type: "rule" | "skill" } | { kind: "status"; label: string };
 
@@ -65,28 +66,38 @@ export function createSidebar(context: vscode.ExtensionContext): void {
   };
 
   const refresh = async (): Promise<void> => {
-    const root = getRoot();
-    if (root) {
-      const manifest = await readManifest(root) ?? getEmptyManifest();
-      cachedInstalled = manifest.installed;
-    } else {
-      cachedInstalled = [];
+    try {
+      const root = getRoot();
+      if (root) {
+        const manifest = await readManifest(root) ?? getEmptyManifest();
+        cachedInstalled = manifest.installed;
+      } else {
+        cachedInstalled = [];
+      }
+      const token = await context.secrets.get("codemint.token");
+      const user = context.globalState.get<{ email: string }>("codemint.user");
+      cachedStatus = token && user ? `Logged in as ${user.email}` : "Not logged in";
+      emitter.fire(undefined);
+    } catch (e) {
+      logError("sidebar.refresh: failed", e);
+      cachedStatus = `Error: ${errorMessage(e)}`;
+      emitter.fire(undefined);
     }
-    const token = await context.secrets.get("codemint.token");
-    const user = context.globalState.get<{ email: string }>("codemint.user");
-    cachedStatus = token && user ? `Logged in as ${user.email}` : "Not logged in";
-    emitter.fire(undefined);
   };
 
   const disposable = vscode.window.registerTreeDataProvider("codemint.installed", provider);
   context.subscriptions.push(disposable);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("codemint.refreshSidebar", () => refresh())
+    vscode.commands.registerCommand("codemint.refreshSidebar", async () => {
+      logInfo("command codemint.refreshSidebar: invoked");
+      await refresh();
+    })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("codemint.removeFromSidebar", async (node: TreeItem) => {
+      logInfo("command codemint.removeFromSidebar: invoked");
       if (!("kind" in node) || "catalogId" in node) {
         const entry = node as ManifestEntry;
         await vscode.commands.executeCommand("codemint.remove");
@@ -95,6 +106,10 @@ export function createSidebar(context: vscode.ExtensionContext): void {
     })
   );
 
-  vscode.workspace.onDidChangeWorkspaceFolders(() => refresh());
-  refresh();
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      void refresh();
+    })
+  );
+  void refresh();
 }

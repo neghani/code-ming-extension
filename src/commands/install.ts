@@ -13,11 +13,16 @@ import {
 } from "../manifest";
 import type { ManifestEntry } from "../types";
 import type { SuggestItem } from "../types";
+import { logInfo, logWarn } from "../logger";
 
 export async function installSuggestItem(
   context: vscode.ExtensionContext,
   item: SuggestItem
 ): Promise<void> {
+  logInfo(`installSuggestItem: start @${item.type}/${item.slug}`);
+  if (item.type !== "rule" && item.type !== "skill") {
+    throw new Error("Only rules and skills can be installed. Prompts are view-only on the website.");
+  }
   const token = await getStoredToken(context) ?? undefined;
   const { root, tool } = await ensureTool(context);
   const rootPath = root.uri.fsPath;
@@ -47,7 +52,10 @@ export async function installSuggestItem(
   };
   manifest = addEntry(manifest, entry);
   await writeManifest(root, manifest);
-  trackUsage(catalog.id, token).catch(() => {});
+  trackUsage(catalog.id, token).catch((e) => {
+    logWarn(`installSuggestItem: trackUsage failed for ${catalog.id}: ${String(e)}`);
+  });
   await vscode.commands.executeCommand("codemint.refreshSidebar");
+  logInfo(`installSuggestItem: wrote ${relPath}`);
   vscode.window.showInformationMessage(`CodeMint: Added ${catalog.title} to ${tool}.`);
 }

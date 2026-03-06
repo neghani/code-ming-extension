@@ -1,11 +1,13 @@
 import * as path from "path";
 import * as vscode from "vscode";
 import { readManifest, getEmptyManifest } from "../manifest";
+import { errorMessage, logError, logInfo } from "../logger";
 
 export function registerListCommand(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("codemint.list", async () => {
       try {
+        logInfo("command codemint.list: invoked");
         const folders = vscode.workspace.workspaceFolders;
         if (!folders?.length) {
           vscode.window.showWarningMessage("CodeMint: Open a folder first.");
@@ -31,8 +33,10 @@ export function registerListCommand(context: vscode.ExtensionContext): void {
 
         const doc = await vscode.workspace.openTextDocument(picked.path);
         await vscode.window.showTextDocument(doc);
+        logInfo(`command codemint.list: opened ${picked.path}`);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
+        logError("command codemint.list: failed", e);
+        const msg = errorMessage(e);
         vscode.window.showErrorMessage(`CodeMint: ${msg}`);
       }
     })

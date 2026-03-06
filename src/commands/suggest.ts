@@ -5,6 +5,8 @@ import { itemsSearch } from "../api";
 import { ensureTool } from "../toolDetect";
 import { installSuggestItem } from "./install";
 import type { SuggestItem } from "../types";
+import { errorMessage, logError, logInfo } from "../logger";
+import type { SearchResponse } from "../api";
 
 const TECH_MARKERS: { file: string; tags: string[] }[] = [
   { file: "package.json", tags: ["node", "javascript"] },
@@ -55,18 +57,36 @@ export function registerSuggestCommand(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("codemint.suggest", async () => {
       try {
+        logInfo("command codemint.suggest: invoked");
         const token = await getStoredToken(context) ?? undefined;
         const { root, tool } = await ensureTool(context);
         const tags = await deriveTags(root);
+        logInfo(`command codemint.suggest: detected tool=${tool} tags=${tags.join(",")}`);
         if (!tags.length) {
           vscode.window.showInformationMessage("CodeMint: No tech markers found. Try CodeMint: Add and search manually.");
           return;
         }
 
-        const [rulesRes, skillsRes] = await Promise.all([
-          itemsSearch({ tags, type: "rule", limit: 10 }, token),
-          itemsSearch({ tags, type: "skill", limit: 10 }, token),
-        ]);
+        logInfo(`command codemint.suggest: searching rules with tags=${tags.join(",")}`);
+        let rulesRes: SearchResponse;
+        try {
+          rulesRes = await itemsSearch({ tags, type: "rule", limit: 10 }, token);
+          logInfo(`command codemint.suggest: rules search returned ${rulesRes.items.length} items`);
+        } catch (e) {
+          logError("command codemint.suggest: rules search failed", e);
+          throw new Error(`Failed to search rules: ${e instanceof Error ? e.message : String(e)}`);
+        }
+
+        logInfo(`command codemint.suggest: searching skills with tags=${tags.join(",")}`);
+        let skillsRes: SearchResponse;
+        try {
+          skillsRes = await itemsSearch({ tags, type: "skill", limit: 10 }, token);
+          logInfo(`command codemint.suggest: skills search returned ${skillsRes.items.length} items`);
+        } catch (e) {
+          logError("command codemint.suggest: skills search failed", e);
+          throw new Error(`Failed to search skills: ${e instanceof Error ? e.message : String(e)}`);
+        }
+
         const combined: SuggestItem[] = [...rulesRes.items, ...skillsRes.items];
         if (!combined.length) {
           vscode.window.showInformationMessage("CodeMint: No recommendations for this project.");
@@ -85,8 +105,10 @@ export function registerSuggestCommand(context: vscode.ExtensionContext): void {
         if (!picked) return;
 
         await installSuggestItem(context, picked.item);
+        logInfo(`command codemint.suggest: installed @${picked.item.type}/${picked.item.slug}`);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
+        logError("command codemint.suggest: failed", e);
+        const msg = errorMessage(e);
         vscode.window.showErrorMessage(`CodeMint: ${msg}`);
       }
     })

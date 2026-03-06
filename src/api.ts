@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { SuggestItem, CatalogItem, AuthUser } from "./types";
+import { logError, logInfo, logWarn } from "./logger";
 
 function getBaseUrl(): string {
   return vscode.workspace.getConfiguration("codemint").get<string>("baseUrl") ?? "https://codemint.app";
@@ -17,26 +18,51 @@ async function request<T>(
   const url = path.startsWith("http") ? path : `${base}${path.startsWith("/") ? path : `/${path}`}`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (opts.token) headers["Authorization"] = `Bearer ${opts.token}`;
-  const init: RequestInit = { method: opts.method ?? "GET", headers };
-  if (opts.body != null && opts.method !== "GET") init.body = JSON.stringify(opts.body);
-  const res = await fetch(url, init);
+  const method = opts.method ?? "GET";
+  const init: RequestInit = { method, headers };
+  if (opts.body != null && opts.method !== "GET") {
+    init.body = JSON.stringify(opts.body);
+    logInfo(`api.request: ${method} ${url} body=${JSON.stringify(opts.body)}`);
+  } else {
+    logInfo(`api.request: ${method} ${url}`);
+  }
+  let res: Response;
+  try {
+    res = await fetch(url, init);
+  } catch (e) {
+    logError(`api.request: network failure ${method} ${url}`, e);
+    throw new Error(`Network error: ${e instanceof Error ? e.message : String(e)}`);
+  }
   const text = await res.text();
   let data: unknown;
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
-    data = {};
+    data = { raw: text };
   }
   if (!res.ok) {
-    const err = data && typeof data === "object" && "error" in data && typeof (data as { error: unknown }).error === "object"
-      ? (data as { error: { code?: string; message?: string } }).error
-      : { code: "error", message: text || res.statusText };
-    const msg = typeof err === "object" && err && "message" in err ? String((err as { message: string }).message) : String(err);
+    let msg: string;
+    if (data && typeof data === "object" && "error" in data) {
+      const err = (data as { error: unknown }).error;
+      if (typeof err === "string") msg = err;
+      else if (typeof err === "object" && err && "message" in err) msg = String((err as { message: string }).message);
+      else msg = text || res.statusText;
+    } else {
+      msg = text || res.statusText;
+    }
+    logError(`api.request: failed ${method} ${url} status=${res.status}`, {
+      status: res.status,
+      statusText: res.statusText,
+      headers: Object.fromEntries(res.headers.entries()),
+      body: text,
+      parsed: data,
+    });
     if (res.status === 401) throw new Error("Not logged in or token expired. Run CodeMint: Login.");
     if (res.status === 404) throw new Error("Rule/skill not found. Check ref or visibility.");
     if (res.status === 429) throw new Error("Too many requests. Try again later.");
-    throw new Error(msg || "Request failed");
+    throw new Error(`API error (${res.status}): ${msg || "Request failed"}`);
   }
+  logInfo(`api.request: success ${method} ${url} status=${res.status}`);
   return data as T;
 }
 
@@ -70,13 +96,16 @@ export async function itemsSearch(
   if (params.page != null) sp.set("page", String(params.page));
   if (params.limit != null) sp.set("limit", String(params.limit));
   const path = `/api/items/search?${sp.toString()}`;
+  logInfo(`api.itemsSearch: params=${JSON.stringify(params)} query=${sp.toString()}`);
   const res = await request<{ items: SuggestItem[]; total: number; page: number; limit: number }>(path, { token });
-  return {
+  const result = {
     items: res.items ?? [],
     total: res.total ?? 0,
     page: res.page ?? 1,
     limit: res.limit ?? 25,
   };
+  logInfo(`api.itemsSearch: returned ${result.items.length} items (total=${result.total})`);
+  return result;
 }
 
 export async function catalogResolve(
@@ -107,7 +136,7 @@ export async function trackUsage(itemId: string, token?: string | null): Promise
       body: { action: "copy" },
       token,
     });
-  } catch {
-    // fire-and-forget
+  } catch (e) {
+    logWarn(`api.trackUsage: failed for ${itemId}: ${String(e)}`);
   }
 }

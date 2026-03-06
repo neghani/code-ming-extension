@@ -1,11 +1,13 @@
 import * as path from "path";
 import * as vscode from "vscode";
 import { readManifest, writeManifest, removeEntry, getEmptyManifest, ensureManifestDir } from "../manifest";
+import { errorMessage, logError, logInfo } from "../logger";
 
 export function registerRemoveCommand(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("codemint.remove", async () => {
       try {
+        logInfo("command codemint.remove: invoked");
         const folders = vscode.workspace.workspaceFolders;
         if (!folders?.length) {
           vscode.window.showWarningMessage("CodeMint: Open a folder first.");
@@ -40,9 +42,11 @@ export function registerRemoveCommand(context: vscode.ExtensionContext): void {
         manifest = removeEntry(manifest, entry.catalogId);
         await writeManifest(root, manifest);
         await vscode.commands.executeCommand("codemint.refreshSidebar");
+        logInfo(`command codemint.remove: removed @${entry.type}/${entry.slug}`);
         vscode.window.showInformationMessage(`CodeMint: Removed ${entry.slug}.`);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
+        logError("command codemint.remove: failed", e);
+        const msg = errorMessage(e);
         vscode.window.showErrorMessage(`CodeMint: ${msg}`);
       }
     })
