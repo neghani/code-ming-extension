@@ -32,13 +32,21 @@ async function request<T>(
   } else {
     logInfo(`api.request: ${method} ${url}`);
   }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
   let res: Response;
   try {
-    res = await fetch(url, init);
+    res = await fetch(url, { ...init, signal: controller.signal });
   } catch (e) {
+    clearTimeout(timer);
+    if (e instanceof Error && e.name === "AbortError") {
+      logError(`api.request: timeout ${method} ${url}`, e);
+      throw new Error("Request timed out. The server may be slow or unreachable.");
+    }
     logError(`api.request: network failure ${method} ${url}`, e);
     throw new Error(`Network error: ${e instanceof Error ? e.message : String(e)}`);
   }
+  clearTimeout(timer);
   const text = await res.text();
   let data: unknown;
   try {

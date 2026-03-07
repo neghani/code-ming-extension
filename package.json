@@ -32,6 +32,7 @@
       { "command": "codemint.suggest", "title": "CodeMint: Suggest" },
       { "command": "codemint.list", "title": "CodeMint: List Installed" },
       { "command": "codemint.remove", "title": "CodeMint: Remove" },
+      { "command": "codemint.removeFromSidebar", "title": "Remove" },
       { "command": "codemint.setBaseUrl", "title": "CodeMint: Set app URL" },
       { "command": "codemint.openSettings", "title": "CodeMint: Open Settings" },
       { "command": "codemint.showLogs", "title": "CodeMint: Show logs" }
@@ -83,6 +84,9 @@
       "view/title": [
         { "command": "codemint.setBaseUrl", "when": "view == codemint.explore", "group": "navigation" },
         { "command": "codemint.openSettings", "when": "view == codemint.installed", "group": "navigation" }
+      ],
+      "view/item/context": [
+        { "command": "codemint.removeFromSidebar", "when": "viewItem == codemint.installedEntry", "group": "inline" }
       ]
     }
   },

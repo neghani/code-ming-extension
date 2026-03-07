@@ -5,7 +5,10 @@ import { catalogSync } from "../api";
 import { readManifest, writeManifest, updateEntry, getEmptyManifest, ensureManifestDir } from "../manifest";
 import { writePath, writeContent } from "../writers";
 import type { CatalogItem } from "../types";
-import { errorMessage, getLogger, logError, logInfo } from "../logger";
+import { errorMessage, getLogger, logError, logInfo, logWarn } from "../logger";
+
+const VALID_TOOLS = ["cursor", "cline", "windsurf", "continue", "copilot", "claude", "codex"] as const;
+type ValidTool = (typeof VALID_TOOLS)[number];
 
 export function registerSyncCommand(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
@@ -58,10 +61,15 @@ export function registerSyncCommand(context: vscode.ExtensionContext): void {
             continue;
           }
 
+          const tool = entry.tool as string;
+          if (!VALID_TOOLS.includes(tool as ValidTool)) {
+            logWarn(`sync: skipping entry with unknown tool "${entry.tool}"`);
+            continue;
+          }
           const rootPath = root.uri.fsPath;
           const fullPath = path.join(rootPath, entry.path);
           await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(fullPath)));
-          const body = writeContent(remote.content, remote.title, remote.type, entry.tool as "cursor" | "cline" | "windsurf" | "continue" | "copilot" | "claude" | "codex");
+          const body = writeContent(remote.content, remote.title, remote.type, tool as ValidTool);
           await vscode.workspace.fs.writeFile(vscode.Uri.file(fullPath), Buffer.from(body, "utf8"));
           if (typeof entry.catalogId === "string" && entry.catalogId.length > 0) {
             manifest = updateEntry(manifest, entry.catalogId, {

@@ -1,9 +1,9 @@
 import * as path from "path";
 import * as vscode from "vscode";
 import { getStoredToken } from "./auth";
-import { readManifest, getEmptyManifest } from "./manifest";
+import { readManifest, getEmptyManifest, writeManifest, removeEntry, removeEntryByRef, ensureManifestDir } from "./manifest";
 import type { ManifestEntry } from "./types";
-import { errorMessage, logError, logInfo } from "./logger";
+import { errorMessage, logError, logInfo, logWarn } from "./logger";
 
 type TreeItem = ManifestEntry | { kind: "group"; label: string; type: "rule" | "skill" } | { kind: "status"; label: string };
 
@@ -102,10 +102,31 @@ export function createSidebar(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("codemint.removeFromSidebar", async (node: TreeItem) => {
       logInfo("command codemint.removeFromSidebar: invoked");
-      if (!("kind" in node) || "catalogId" in node) {
-        const entry = node as ManifestEntry;
-        await vscode.commands.executeCommand("codemint.remove");
+      if ("kind" in node) return;
+      const entry = node as ManifestEntry;
+      const root = getRoot();
+      if (!root) {
+        vscode.window.showWarningMessage("CodeMint: Open a folder first.");
+        return;
+      }
+      try {
+        let manifest = await readManifest(root) ?? getEmptyManifest();
+        await ensureManifestDir(root);
+        const fullPath = path.join(root.uri.fsPath, entry.path);
+        try {
+          await vscode.workspace.fs.delete(vscode.Uri.file(fullPath));
+        } catch (e) {
+          logWarn("removeFromSidebar: delete failed " + (e instanceof Error ? e.message : String(e)));
+        }
+        const hasValidCatalogId = typeof entry.catalogId === "string" && entry.catalogId.trim().length > 0;
+        manifest = hasValidCatalogId ? removeEntry(manifest, entry.catalogId) : removeEntryByRef(manifest, entry.ref);
+        await writeManifest(root, manifest);
         await refresh();
+        logInfo(`codemint.removeFromSidebar: removed @${entry.type}/${entry.slug}`);
+        vscode.window.showInformationMessage(`CodeMint: Removed ${entry.slug}.`);
+      } catch (e) {
+        logError("codemint.removeFromSidebar: failed", e);
+        vscode.window.showErrorMessage(`CodeMint: ${errorMessage(e)}`);
       }
     })
   );

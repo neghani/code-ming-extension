@@ -58,13 +58,31 @@ export async function login(context: vscode.ExtensionContext): Promise<void> {
   const authUrl = `${baseUrl}/cli-auth?port=${port}`;
   logInfo(`auth.login: opening browser callback url on port ${port}`);
   await vscode.env.openExternal(vscode.Uri.parse(authUrl));
-  await new Promise<void>((resolve) => {
-    server.on("close", () => resolve());
-    setTimeout(() => {
-      server.close();
-      resolve();
-    }, 300000);
-  });
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: "CodeMint Login",
+      cancellable: true,
+    },
+    async (progress, cancellationToken) => {
+      progress.report({ message: "Waiting for browser login…" });
+      await new Promise<void>((resolve, reject) => {
+        const done = () => {
+          server.close();
+          resolve();
+        };
+        cancellationToken.onCancellationRequested(() => {
+          logInfo("auth.login: cancelled by user");
+          done();
+        });
+        server.on("close", () => resolve());
+        setTimeout(() => done(), 300000);
+      });
+      if (cancellationToken.isCancellationRequested) {
+        throw new Error("Login cancelled.");
+      }
+    }
+  );
   const token = receivedToken;
   if (!token) {
     throw new Error("No token received. Complete the login in the browser.");

@@ -1,3 +1,4 @@
+import * as crypto from "crypto";
 import * as path from "path";
 import * as vscode from "vscode";
 import { getStoredToken } from "./auth";
@@ -14,26 +15,28 @@ function getBaseUrl(): string {
 }
 
 function getHtml(): string {
+  const nonce = crypto.randomBytes(16).toString("base64");
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { 
       margin: 0; 
       padding: 12px; 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif); 
       font-size: 13px; 
-      background: #121212;
-      color: #e5e5e5;
+      background: var(--vscode-editor-background);
+      color: var(--vscode-editor-foreground);
     }
     .tabs { 
       display: flex; 
       gap: 8px; 
       margin-bottom: 12px; 
-      border-bottom: 1px solid #303030; 
+      border-bottom: 1px solid var(--vscode-panel-border); 
       align-items: center; 
       flex-wrap: wrap; 
       padding-bottom: 8px;
@@ -43,60 +46,60 @@ function getHtml(): string {
       cursor: pointer; 
       background: transparent; 
       border: none; 
-      color: #9e9e9e;
+      color: var(--vscode-descriptionForeground);
       font-size: 13px;
       font-weight: 500;
       border-radius: 6px;
       transition: all 0.2s;
     }
     .tab:hover { 
-      background: #212121; 
-      color: #e5e5e5;
+      background: var(--vscode-list-hoverBackground); 
+      color: var(--vscode-editor-foreground);
     }
     .tab.active { 
-      color: #2dcc8c;
-      background: rgba(45, 204, 140, 0.1);
+      color: var(--vscode-button-foreground);
+      background: var(--vscode-button-background);
       font-weight: 600;
     }
     .search-box { 
       margin-left: auto; 
       padding: 6px 12px; 
       font-size: 12px; 
-      border: 1px solid #424242; 
-      background: #212121; 
-      color: #e5e5e5; 
+      border: 1px solid var(--vscode-input-border); 
+      background: var(--vscode-input-background); 
+      color: var(--vscode-input-foreground); 
       border-radius: 6px; 
       width: 160px;
       outline: none;
     }
     .search-box:focus {
-      border-color: #2dcc8c;
-      box-shadow: 0 0 0 1px rgba(45, 204, 140, 0.2);
+      border-color: var(--vscode-focusBorder);
+      box-shadow: 0 0 0 1px var(--vscode-focusBorder);
     }
     .search-box::placeholder {
-      color: #757575;
+      color: var(--vscode-input-placeholderForeground);
     }
     #list { overflow-y: auto; }
     .card { 
       padding: 12px; 
       margin-bottom: 10px; 
-      border: 1px solid #303030; 
+      border: 1px solid var(--vscode-panel-border); 
       border-radius: 8px; 
-      background: #1e1e1e;
+      background: var(--vscode-editor-inactiveSelectionBackground);
       transition: all 0.2s;
     }
     .card:hover {
-      border-color: #424242;
-      background: #212121;
+      border-color: var(--vscode-focusBorder);
+      background: var(--vscode-list-hoverBackground);
     }
     .card h3 { 
       margin: 0 0 8px 0; 
       font-size: 14px; 
       font-weight: 600;
-      color: #ffffff;
+      color: var(--vscode-editor-foreground);
     }
     .card .desc { 
-      color: #9e9e9e; 
+      color: var(--vscode-descriptionForeground); 
       font-size: 12px; 
       line-height: 1.5; 
       margin-bottom: 10px; 
@@ -115,9 +118,9 @@ function getHtml(): string {
       height: 32px;
       font-size: 14px; 
       cursor: pointer; 
-      border: 1px solid rgba(45, 204, 140, 0.3); 
+      border: 1px solid var(--vscode-button-border, var(--vscode-panel-border)); 
       background: transparent; 
-      color: #2dcc8c; 
+      color: var(--vscode-button-background); 
       border-radius: 6px;
       display: inline-flex;
       align-items: center;
@@ -126,8 +129,8 @@ function getHtml(): string {
       position: relative;
     }
     .card button:hover { 
-      background: rgba(45, 204, 140, 0.1); 
-      border-color: #2dcc8c;
+      background: var(--vscode-list-hoverBackground); 
+      border-color: var(--vscode-button-background);
     }
     .card button:hover::after {
       content: attr(title);
@@ -137,42 +140,42 @@ function getHtml(): string {
       transform: translateX(-50%);
       margin-bottom: 4px;
       padding: 4px 8px;
-      background: #1e1e1e;
-      border: 1px solid #303030;
+      background: var(--vscode-editor-background);
+      border: 1px solid var(--vscode-panel-border);
       border-radius: 4px;
       font-size: 11px;
       white-space: nowrap;
-      color: #e5e5e5;
+      color: var(--vscode-editor-foreground);
       pointer-events: none;
       z-index: 1000;
     }
     .card button.primary {
-      background: #2dcc8c;
-      color: #121212;
-      border-color: #2dcc8c;
+      background: var(--vscode-button-background);
+      color: var(--vscode-button-foreground);
+      border-color: var(--vscode-button-background);
     }
     .card button.primary:hover {
-      background: #47d7a7;
+      background: var(--vscode-button-hoverBackground);
     }
     .card button.danger { 
       background: transparent;
-      border-color: rgba(239, 83, 80, 0.3);
-      color: #ef5350;
+      border-color: var(--vscode-inputValidation-errorBorder);
+      color: var(--vscode-errorForeground);
     }
     .card button.danger:hover {
-      background: rgba(239, 83, 80, 0.1);
-      border-color: #ef5350;
+      background: var(--vscode-inputValidation-errorBackground);
+      border-color: var(--vscode-errorForeground);
     }
     .empty { 
       padding: 24px; 
-      color: #757575; 
+      color: var(--vscode-descriptionForeground); 
       text-align: center; 
       font-size: 13px;
     }
     .loading { 
       padding: 24px; 
       text-align: center; 
-      color: #757575;
+      color: var(--vscode-descriptionForeground);
       font-size: 13px;
     }
   </style>
@@ -185,7 +188,7 @@ function getHtml(): string {
     <input type="text" class="search-box" id="search" placeholder="Search…" />
   </div>
   <div id="list"><div class="empty">Select a tab to load items.</div></div>
-  <script>
+  <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const listEl = document.getElementById('list');
     let currentTab = 'rule';
@@ -214,14 +217,14 @@ function getHtml(): string {
         }
         listEl.innerHTML = items.map(item => {
           const desc = item.snippet || (item.tags && item.tags.length ? item.tags.join(', ') : '') || 'No description';
-          const installed = installedIds.includes(item.catalogId);
+          const installed = item.catalogId != null && installedIds.includes(item.catalogId);
           const canInstall = item.type !== 'prompt';
           const syncOrRemove = canInstall
             ? (installed
               ? '<button class="danger" title="Remove" data-action="remove" data-item="' + enc(item) + '">🗑</button>'
               : '<button class="primary" title="Sync" data-action="install" data-item="' + enc(item) + '">⬇</button>')
             : '';
-          return '<div class="card" data-id="' + item.catalogId + '">' +
+          return '<div class="card" data-id="' + (item.catalogId ?? '') + '">' +
             '<h3>' + escapeHtml(item.name) + '</h3>' +
             '<div class="desc">' + escapeHtml(desc) + '</div>' +
             '<div class="actions">' + syncOrRemove +

@@ -3,7 +3,7 @@ export type SuggestItem = {
   name: string;
   type: string;
   slug: string;
-  catalogId: string;
+  catalogId: string | null;
   version: string;
   tags: string[];
   score: number;
