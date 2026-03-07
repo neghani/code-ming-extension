@@ -69,7 +69,13 @@ export function registerSyncCommand(context: vscode.ExtensionContext): void {
           const rootPath = root.uri.fsPath;
           const fullPath = path.join(rootPath, entry.path);
           await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(fullPath)));
-          const body = writeContent(remote.content, remote.title, remote.type, tool as ValidTool);
+          const body = writeContent(
+            remote.content ?? "",
+            remote.title ?? "",
+            remote.type,
+            tool as ValidTool,
+            { applyMode: remote.applyMode, globs: remote.globs ?? undefined }
+          );
           await vscode.workspace.fs.writeFile(vscode.Uri.file(fullPath), Buffer.from(body, "utf8"));
           if (typeof entry.catalogId === "string" && entry.catalogId.length > 0) {
             manifest = updateEntry(manifest, entry.catalogId, {

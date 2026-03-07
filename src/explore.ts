@@ -208,6 +208,7 @@ function getHtml(): string {
     });
     window.addEventListener('message', e => {
       const msg = e.data;
+      if (!msg || typeof msg !== 'object') return;
       if (msg.type === 'items') {
         installedIds = msg.installedIds || [];
         const items = msg.items || [];
@@ -373,12 +374,13 @@ export function createExploreView(context: vscode.ExtensionContext): void {
       wv.webview.html = getHtml();
       void loadTab("rule");
       wv.webview.onDidReceiveMessage(async (msg: { type: string; value?: TabType; item?: SuggestItem }) => {
+        if (!msg || typeof msg !== "object") return;
         logInfo(`explore.message: type=${msg.type}`);
         if (msg.type === "tab" && msg.value) {
           await loadTab(msg.value);
         } else if (msg.type === "search" && typeof msg.value === "string") {
           await loadTab(currentTab, msg.value);
-        } else if (msg.type === "install" && msg.item) {
+        } else if (msg.type === "install" && msg.item?.type && msg.item?.slug) {
           try {
             await installSuggestItem(context, msg.item);
             const installedIds = await getInstalledIds();
@@ -388,14 +390,14 @@ export function createExploreView(context: vscode.ExtensionContext): void {
             const err = errorMessage(e);
             vscode.window.showErrorMessage(`CodeMint: ${err}`);
           }
-        } else if (msg.type === "remove" && msg.item) {
-          const ref = `@${msg.item.type}/${msg.item.slug}`;
+        } else if (msg.type === "remove" && msg.item && typeof msg.item === "object") {
+          const ref = msg.item.type && msg.item.slug ? `@${msg.item.type}/${msg.item.slug}` : undefined;
           await removeByCatalogId(msg.item.catalogId ?? null, ref);
           const installedIds = await getInstalledIds();
           postMessage({ type: "items", tab: currentTab, items: currentItems, installedIds });
-        } else if (msg.type === "openFile" && msg.item) {
+        } else if (msg.type === "openFile" && msg.item?.type && msg.item?.slug) {
           await openInFile(msg.item);
-        } else if (msg.type === "openUrl" && msg.item) {
+        } else if (msg.type === "openUrl" && msg.item && typeof msg.item === "object") {
           openUrl(msg.item);
         }
       });
@@ -409,6 +411,10 @@ export function createExploreView(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("codemint.installCatalogItem", async (item: SuggestItem) => {
+      if (!item?.type || !item?.slug) {
+        vscode.window.showWarningMessage("CodeMint: Invalid item. Use Explore to select a rule or skill to install.");
+        return;
+      }
       try {
         logInfo(`command codemint.installCatalogItem: @${item.type}/${item.slug}`);
         await installSuggestItem(context, item);

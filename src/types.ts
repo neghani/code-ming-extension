@@ -8,6 +8,8 @@ export type SuggestItem = {
   tags: string[];
   score: number;
   snippet?: string;
+  applyMode?: string;
+  globs?: string | null;
 };
 
 export type CatalogItem = {
@@ -22,6 +24,8 @@ export type CatalogItem = {
   deprecated: boolean;
   changelog: string | null;
   tags: string[];
+  applyMode?: string;
+  globs?: string | null;
 };
 
 export type ManifestEntry = {

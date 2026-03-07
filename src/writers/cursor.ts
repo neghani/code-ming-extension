@@ -2,19 +2,30 @@ import * as path from "path";
 import type { ToolId } from "../toolDetect";
 
 function hasFrontmatter(content: string): boolean {
-  const trimmed = content.trimStart();
+  const trimmed = (content ?? "").trimStart();
   return trimmed.startsWith("---");
 }
 
-function ensureFrontmatter(content: string, title: string): string {
+function ensureFrontmatter(
+  content: string,
+  title: string,
+  applyMode?: string,
+  globs?: string | null
+): string {
   if (hasFrontmatter(content)) return content;
   const desc = title.replace(/"/g, '\\"');
-  return `---
+  const alwaysApply = applyMode === "always";
+  let fm = `---
 description: "${desc}"
-alwaysApply: true
----
+alwaysApply: ${alwaysApply}
+`;
+  if (applyMode === "glob" && globs) {
+    fm += `globs: ${globs}\n`;
+  }
+  fm += `---
 
-${content}`;
+${content ?? ""}`;
+  return fm;
 }
 
 export function writePath(rootPath: string, slug: string, type: string): string {
@@ -24,9 +35,15 @@ export function writePath(rootPath: string, slug: string, type: string): string 
   return path.join(rootPath, ".cursor", "rules", `${slug}.mdc`);
 }
 
-export function writeContent(content: string, title: string, type: string): string {
+export function writeContent(
+  content: string,
+  title: string,
+  type: string,
+  applyMode?: string,
+  globs?: string | null
+): string {
   if (type === "skill") return content;
-  return ensureFrontmatter(content, title);
+  return ensureFrontmatter(content, title, applyMode, globs);
 }
 
 export const toolId: ToolId = "cursor";

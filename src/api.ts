@@ -116,13 +116,26 @@ export async function itemsSearch(
   if (params.limit != null) sp.set("limit", String(params.limit));
   const path = `/api/items/search?${sp.toString()}`;
   logInfo(`api.itemsSearch: params=${JSON.stringify(params)} query=${sp.toString()}`);
-  const res = await request<{ items: SuggestItem[]; total: number; page: number; limit: number }>(path, { token });
-  const result = {
-    items: res.items ?? [],
-    total: res.total ?? 0,
-    page: res.page ?? 1,
-    limit: res.limit ?? 25,
-  };
+  type SearchRow = { id?: string; title?: string; name?: string; type?: string; slug?: string; catalogId?: string; catalogVersion?: string; tags?: { name?: string }[] | string[]; snippet?: string; applyMode?: string; globs?: string | null };
+  const res = await request<{ data: SearchRow[]; total: number; page: number; limit: number; pageSize?: number }>(path, { token });
+  const list = res.data ?? [];
+  const items: SuggestItem[] = list.map((it) => {
+    const tags = Array.isArray(it.tags) ? it.tags.map((t) => (typeof t === "string" ? t : (t as { name?: string }).name ?? "")) : [];
+    return {
+      id: it.id ?? "",
+      name: it.title ?? it.name ?? "",
+      type: it.type ?? "",
+      slug: it.slug ?? it.id ?? "",
+      catalogId: it.catalogId ?? (it.type && (it.slug ?? it.id) ? `${it.type}:${it.slug ?? it.id}` : null),
+      version: it.catalogVersion ?? "0.0.0",
+      tags,
+      score: 0,
+      snippet: it.snippet,
+      applyMode: it.applyMode,
+      globs: it.globs ?? undefined,
+    };
+  });
+  const result = { items, total: res.total ?? 0, page: res.page ?? 1, limit: res.limit ?? res.pageSize ?? 25 };
   logInfo(`api.itemsSearch: returned ${result.items.length} items (total=${result.total})`);
   return result;
 }

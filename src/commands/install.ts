@@ -15,10 +15,21 @@ import type { ManifestEntry } from "../types";
 import type { SuggestItem } from "../types";
 import { logInfo, logWarn } from "../logger";
 
+let isInstalling = false;
+
 export async function installSuggestItem(
   context: vscode.ExtensionContext,
   item: SuggestItem
 ): Promise<void> {
+  if (!item?.type || !item?.slug) {
+    throw new Error("Invalid item: type and slug are required. Install from the Explore view.");
+  }
+  if (isInstalling) {
+    vscode.window.showWarningMessage("CodeMint: An install is already in progress. Please wait.");
+    return;
+  }
+  isInstalling = true;
+  try {
   logInfo(`installSuggestItem: start @${item.type}/${item.slug}`);
   if (item.type !== "rule" && item.type !== "skill") {
     throw new Error("Only rules and skills can be installed. Prompts are view-only on the website.");
@@ -35,7 +46,10 @@ export async function installSuggestItem(
   const relPath = path.relative(rootPath, fullPath);
   const dir = path.dirname(fullPath);
   await vscode.workspace.fs.createDirectory(vscode.Uri.file(dir));
-  const body = writeContent(catalog.content, catalog.title, catalog.type, tool);
+  const body = writeContent(catalog.content, catalog.title, catalog.type, tool, {
+    applyMode: catalog.applyMode,
+    globs: catalog.globs ?? undefined,
+  });
   await vscode.workspace.fs.writeFile(vscode.Uri.file(fullPath), Buffer.from(body, "utf8"));
   let manifest = await readManifest(root) ?? getEmptyManifest();
   await ensureManifestDir(root);
@@ -64,4 +78,7 @@ export async function installSuggestItem(
   await vscode.commands.executeCommand("codemint.refreshSidebar");
   logInfo(`installSuggestItem: wrote ${relPath}`);
   vscode.window.showInformationMessage(`CodeMint: Added ${catalog.title} to ${tool}.`);
+  } finally {
+    isInstalling = false;
+  }
 }
