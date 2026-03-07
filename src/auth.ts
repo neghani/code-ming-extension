@@ -20,6 +20,10 @@ export async function login(context: vscode.ExtensionContext): Promise<void> {
   const baseUrl = trimTrailingSlash(getBaseUrl());
   logInfo(`auth.login: starting with baseUrl=${baseUrl}`);
   let receivedToken: string | undefined;
+  let resolveWaiting: () => void;
+  const waitForTokenOrCancel = new Promise<void>((resolve) => {
+    resolveWaiting = resolve;
+  });
   const server = http.createServer((req, res) => {
     const url = req.url ?? "/";
     const q = url.indexOf("?");
@@ -32,6 +36,7 @@ export async function login(context: vscode.ExtensionContext): Promise<void> {
       );
       receivedToken = token;
       logInfo("auth.login: received callback token");
+      resolveWaiting();
       server.close();
       return;
     }
@@ -66,18 +71,14 @@ export async function login(context: vscode.ExtensionContext): Promise<void> {
     },
     async (progress, cancellationToken) => {
       progress.report({ message: "Waiting for browser login…" });
-      await new Promise<void>((resolve, reject) => {
-        const done = () => {
-          server.close();
-          resolve();
-        };
-        cancellationToken.onCancellationRequested(() => {
-          logInfo("auth.login: cancelled by user");
-          done();
-        });
-        server.on("close", () => resolve());
-        setTimeout(() => done(), 300000);
+      cancellationToken.onCancellationRequested(() => {
+        logInfo("auth.login: cancelled by user");
+        resolveWaiting();
       });
+      server.on("close", () => resolveWaiting());
+      setTimeout(() => resolveWaiting(), 300000);
+      await waitForTokenOrCancel;
+      server.close();
       if (cancellationToken.isCancellationRequested) {
         throw new Error("Login cancelled.");
       }

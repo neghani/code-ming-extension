@@ -14,6 +14,13 @@ function getBaseUrl(): string {
   return vscode.workspace.getConfiguration("codemint").get<string>("baseUrl") ?? "https://codemint.app";
 }
 
+const ICON_SVGS: Record<string, string> = {
+  "cloud-download": "M8 3a3 3 0 0 0-3 3 .5.5 0 0 1-.5.5h-.25a2.25 2.25 0 0 0 0 4.5h.772c.031.343.094.678.185 1H4.25a3.25 3.25 0 0 1-.22-6.493 4 4 0 0 1 7.887-.323 5.49 5.49 0 0 0-1.084-.174A3.001 3.001 0 0 0 8 3Zm7 7.5a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm-4.854 2.353.003.003a.499.499 0 0 0 .348.144h.006a.5.5 0 0 0 .35-.146l2-2a.5.5 0 0 0-.707-.708L11 11.293V8a.5.5 0 0 0-1 0v3.293l-1.146-1.147a.5.5 0 0 0-.708.708l2 2Z",
+  trash: "M14 2h-4c0-1.103-.897-2-2-2S6 .897 6 2H2a.5.5 0 0 0 0 1h.54l.809 9.708A2.513 2.513 0 0 0 5.84 15h4.319a2.514 2.514 0 0 0 2.491-2.292L13.459 3h.54a.5.5 0 0 0 0-1H14ZM8 1c.551 0 1 .449 1 1H7c0-.551.449-1 1-1Zm3.655 11.625A1.509 1.509 0 0 1 10.16 14H5.841a1.509 1.509 0 0 1-1.495-1.375L3.544 3h8.914l-.802 9.625h-.001ZM7 5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 1 0Zm3 0v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 1 0Z",
+  file: "M5 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V5.414a1.5 1.5 0 0 0-.44-1.06L9.647 1.439A1.5 1.5 0 0 0 8.586 1H5ZM4 3a1 1 0 0 1 1-1h3v2.5A1.5 1.5 0 0 0 9.5 6H12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3Zm7.793 2H9.5a.5.5 0 0 1-.5-.5V2.207L11.793 5Z",
+  "link-external": "M3.5 2A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5V9.27a.5.5 0 0 1 1 0v3.23a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 1 12.5v-9A2.5 2.5 0 0 1 3.5 1h3.23a.5.5 0 0 1 0 1H3.5Zm5.27-.5a.5.5 0 0 1 .5-.5h5.23a.5.5 0 0 1 .5.5v5.23a.5.5 0 0 1-1 0V2.708L9.623 7.084a.5.5 0 1 1-.707-.707L13.293 2H9.269a.5.5 0 0 1-.5-.5Z",
+};
+
 function getHtml(): string {
   const nonce = crypto.randomBytes(16).toString("base64");
   return `<!DOCTYPE html>
@@ -26,7 +33,7 @@ function getHtml(): string {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { 
       margin: 0; 
-      padding: 12px; 
+      padding: 8px; 
       font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif); 
       font-size: 13px; 
       background: var(--vscode-editor-background);
@@ -34,22 +41,21 @@ function getHtml(): string {
     }
     .tabs { 
       display: flex; 
-      gap: 8px; 
-      margin-bottom: 12px; 
+      gap: 2px; 
+      margin-bottom: 6px; 
       border-bottom: 1px solid var(--vscode-panel-border); 
       align-items: center; 
-      flex-wrap: wrap; 
-      padding-bottom: 8px;
+      padding-bottom: 6px;
     }
     .tab { 
-      padding: 8px 16px; 
+      padding: 4px 10px; 
       cursor: pointer; 
       background: transparent; 
       border: none; 
       color: var(--vscode-descriptionForeground);
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 500;
-      border-radius: 6px;
+      border-radius: 4px;
       transition: all 0.2s;
     }
     .tab:hover { 
@@ -61,15 +67,16 @@ function getHtml(): string {
       background: var(--vscode-button-background);
       font-weight: 600;
     }
+    .search-row { margin-bottom: 8px; }
     .search-box { 
-      margin-left: auto; 
-      padding: 6px 12px; 
+      width: 100%;
+      height: 26px;
+      padding: 3px 8px; 
       font-size: 12px; 
       border: 1px solid var(--vscode-input-border); 
       background: var(--vscode-input-background); 
       color: var(--vscode-input-foreground); 
-      border-radius: 6px; 
-      width: 160px;
+      border-radius: 4px;
       outline: none;
     }
     .search-box:focus {
@@ -81,58 +88,65 @@ function getHtml(): string {
     }
     #list { overflow-y: auto; }
     .card { 
-      padding: 12px; 
-      margin-bottom: 10px; 
+      padding: 7px 9px; 
+      margin-bottom: 4px; 
       border: 1px solid var(--vscode-panel-border); 
-      border-radius: 8px; 
-      background: var(--vscode-editor-inactiveSelectionBackground);
+      border-radius: 6px; 
+      background: var(--vscode-sideBar-background, var(--vscode-editor-inactiveSelectionBackground));
       transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
     }
     .card:hover {
       border-color: var(--vscode-focusBorder);
       background: var(--vscode-list-hoverBackground);
     }
-    .card h3 { 
-      margin: 0 0 8px 0; 
-      font-size: 14px; 
+    .card-header {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      min-width: 0;
+    }
+    .installed-dot {
+      font-size: 8px;
+      color: var(--vscode-testing-iconPassed, #4ec9b0);
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .card-title {
+      flex: 1 1 0;
+      font-size: 12px;
       font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
       color: var(--vscode-editor-foreground);
     }
-    .card .desc { 
-      color: var(--vscode-descriptionForeground); 
-      font-size: 12px; 
-      line-height: 1.5; 
-      margin-bottom: 10px; 
-      white-space: pre-wrap; 
-      max-height: 4.5em; 
-      overflow: hidden; 
+    .card-actions {
+      display: flex;
+      gap: 2px;
+      flex-shrink: 0;
     }
-    .card .actions { 
-      display: flex; 
-      flex-wrap: wrap; 
-      gap: 8px; 
-    }
-    .card button { 
-      padding: 6px; 
-      width: 32px;
-      height: 32px;
-      font-size: 14px; 
-      cursor: pointer; 
-      border: 1px solid var(--vscode-button-border, var(--vscode-panel-border)); 
-      background: transparent; 
-      color: var(--vscode-button-background); 
-      border-radius: 6px;
+    .card-actions button {
+      width: 16px;
+      height: 16px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: var(--vscode-icon-foreground, var(--vscode-descriptionForeground));
+      border-radius: 2px;
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       transition: all 0.2s;
       position: relative;
     }
-    .card button:hover { 
-      background: var(--vscode-list-hoverBackground); 
-      border-color: var(--vscode-button-background);
+    .card-actions button:hover {
+      background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground);
+      color: var(--vscode-editor-foreground);
     }
-    .card button:hover::after {
+    .card-actions button:hover::after {
       content: attr(title);
       position: absolute;
       bottom: 100%;
@@ -149,34 +163,46 @@ function getHtml(): string {
       pointer-events: none;
       z-index: 1000;
     }
-    .card button.primary {
-      background: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
-      border-color: var(--vscode-button-background);
+    .card-actions button.primary { color: var(--vscode-button-background); }
+    .card-actions button.primary:hover { color: var(--vscode-button-hoverBackground); }
+    .card-actions button.danger { color: var(--vscode-errorForeground); }
+    .card-actions button.danger:hover { color: var(--vscode-errorForeground); }
+    .card-actions button svg {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
     }
-    .card button.primary:hover {
-      background: var(--vscode-button-hoverBackground);
-    }
-    .card button.danger { 
-      background: transparent;
-      border-color: var(--vscode-inputValidation-errorBorder);
-      color: var(--vscode-errorForeground);
-    }
-    .card button.danger:hover {
-      background: var(--vscode-inputValidation-errorBackground);
-      border-color: var(--vscode-errorForeground);
-    }
-    .empty { 
-      padding: 24px; 
-      color: var(--vscode-descriptionForeground); 
-      text-align: center; 
-      font-size: 13px;
-    }
-    .loading { 
-      padding: 24px; 
-      text-align: center; 
+    .card-meta { margin-top: 4px; }
+    .card-meta.snippet {
+      font-size: 11px;
       color: var(--vscode-descriptionForeground);
-      font-size: 13px;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-meta.tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+    .tag {
+      font-size: 9px;
+      font-weight: 500;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: transparent;
+      color: var(--vscode-descriptionForeground);
+      border: 1px solid var(--vscode-descriptionForeground);
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+    .empty, .loading {
+      padding: 16px 8px;
+      font-size: 12px;
+      text-align: center;
+      color: var(--vscode-descriptionForeground);
     }
   </style>
 </head>
@@ -185,6 +211,8 @@ function getHtml(): string {
     <button class="tab active" data-tab="rule">Rules</button>
     <button class="tab" data-tab="prompt">Prompts</button>
     <button class="tab" data-tab="skill">Skills</button>
+  </div>
+  <div class="search-row">
     <input type="text" class="search-box" id="search" placeholder="Search…" />
   </div>
   <div id="list"><div class="empty">Select a tab to load items.</div></div>
@@ -206,6 +234,11 @@ function getHtml(): string {
     searchEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') vscode.postMessage({ type: 'search', value: searchEl.value.trim() });
     });
+    const ICON_SVGS = ${JSON.stringify(ICON_SVGS)};
+    const iconSvg = (name) => {
+      const d = ICON_SVGS[name];
+      return d ? '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="' + d + '"/></svg>' : '';
+    };
     window.addEventListener('message', e => {
       const msg = e.data;
       if (!msg || typeof msg !== 'object') return;
@@ -217,21 +250,35 @@ function getHtml(): string {
           return;
         }
         listEl.innerHTML = items.map(item => {
-          const desc = item.snippet || (item.tags && item.tags.length ? item.tags.join(', ') : '') || 'No description';
           const installed = item.catalogId != null && installedIds.includes(item.catalogId);
           const canInstall = item.type !== 'prompt';
           const syncOrRemove = canInstall
             ? (installed
-              ? '<button class="danger" title="Remove" data-action="remove" data-item="' + enc(item) + '">🗑</button>'
-              : '<button class="primary" title="Sync" data-action="install" data-item="' + enc(item) + '">⬇</button>')
+              ? '<button class="danger" title="Remove" data-action="remove" data-item="' + enc(item) + '">' + iconSvg('trash') + '</button>'
+              : '<button class="primary" title="Install" data-action="install" data-item="' + enc(item) + '">' + iconSvg('cloud-download') + '</button>')
             : '';
+          const hasSnippet = !!item.snippet;
+          const tags = (item.tags && item.tags.length > 0)
+            ? (item.tags || []).slice(0, 5).map(function(t) { return String(t).trim(); }).filter(Boolean)
+            : (item.slug ? [item.slug] : []);
+          const hasTags = tags.length > 0;
+          let meta = '';
+          if (hasSnippet) {
+            meta = '<div class="card-meta snippet">' + escapeHtml(item.snippet) + '</div>';
+          } else if (hasTags) {
+            meta = '<div class="card-meta tags">' + tags.map(function(t) { return '<span class="tag">' + escapeHtml(t) + '</span>'; }).join('') + '</div>';
+          }
+          const dot = installed ? '<span class="installed-dot" title="Installed">●</span>' : '';
           return '<div class="card" data-id="' + (item.catalogId ?? '') + '">' +
-            '<h3>' + escapeHtml(item.name) + '</h3>' +
-            '<div class="desc">' + escapeHtml(desc) + '</div>' +
-            '<div class="actions">' + syncOrRemove +
-            '<button title="Open File" data-action="openFile" data-item="' + enc(item) + '">📄</button>' +
-            '<button title="View Online" data-action="openUrl" data-item="' + enc(item) + '">🌐</button>' +
-            '</div></div>';
+            '<div class="card-header">' +
+            dot +
+            '<span class="card-title">' + escapeHtml(item.name) + '</span>' +
+            '<div class="card-actions">' + syncOrRemove +
+            '<button title="Open in editor" data-action="openFile" data-item="' + enc(item) + '">' + iconSvg('file') + '</button>' +
+            '<button title="View on web" data-action="openUrl" data-item="' + enc(item) + '">' + iconSvg('link-external') + '</button>' +
+            '</div></div>' +
+            meta +
+            '</div>';
         }).join('');
         listEl.querySelectorAll('[data-action]').forEach(btn => {
           btn.addEventListener('click', () => {
@@ -370,7 +417,7 @@ export function createExploreView(context: vscode.ExtensionContext): void {
       _token: vscode.CancellationToken
     ): void {
       webviewView = wv;
-      wv.webview.options = { enableScripts: true, localResourceRoots: [] };
+      wv.webview.options = { enableScripts: true };
       wv.webview.html = getHtml();
       void loadTab("rule");
       wv.webview.onDidReceiveMessage(async (msg: { type: string; value?: TabType; item?: SuggestItem }) => {
