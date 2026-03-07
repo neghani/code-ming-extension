@@ -1,0 +1,9 @@
+# Source and config (only out/ and package.json etc. are needed in the vsix)
+src/**
+tsconfig.json
+.gitignore
+**/*.map
+.DS_Store
+node_modules/**
+*.vsix
+BEST_PRACTICES.md

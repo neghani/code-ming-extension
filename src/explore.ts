@@ -349,13 +349,12 @@ export function createExploreView(context: vscode.ExtensionContext): void {
   }
 
   function openUrl(item: SuggestItem): void {
-    if (!item?.type || !item?.slug) {
+    if (!item?.type || !item?.id) {
       vscode.window.showErrorMessage("CodeMint: Invalid item.");
       return;
     }
     const base = getBaseUrl().replace(/\/+$/, "");
-    const segment = item.type === "rule" ? "rules" : item.type === "prompt" ? "prompts" : "skills";
-    const url = `${base}/${segment}/${item.slug}`;
+    const url = `${base}/explore/items/${encodeURIComponent(item.id)}?from=${item.type}`;
     logInfo(`explore.openUrl: ${url}`);
     vscode.env.openExternal(vscode.Uri.parse(url));
   }
