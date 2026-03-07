@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { getStoredToken } from "./auth";
 import { getLogger, logError, logInfo } from "./logger";
 
 export function createStatusBar(context: vscode.ExtensionContext): void {
@@ -8,8 +9,11 @@ export function createStatusBar(context: vscode.ExtensionContext): void {
 
   const update = async (): Promise<void> => {
     try {
-      const token = await context.secrets.get("codemint.token");
+      const token = await getStoredToken(context);
       const user = context.globalState.get<{ email: string }>("codemint.user");
+      logInfo(
+        "auth state: token=" + (token ? "present" : "absent") + " user=" + (user ? "present" : "absent") + (user?.email ? " as " + user.email : "")
+      );
       if (token && user) {
         item.text = "CodeMint: synced";
         item.tooltip = `Logged in as ${user.email}. Click to sync.`;
@@ -29,7 +33,7 @@ export function createStatusBar(context: vscode.ExtensionContext): void {
       logInfo("command codemint.statusBarClick: invoked");
       channel.show(true);
       try {
-        const token = await context.secrets.get("codemint.token");
+        const token = await getStoredToken(context);
         if (token) {
           await vscode.commands.executeCommand("codemint.sync");
         } else {

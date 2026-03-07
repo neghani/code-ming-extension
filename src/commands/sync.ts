@@ -27,7 +27,17 @@ export function registerSyncCommand(context: vscode.ExtensionContext): void {
           return;
         }
 
-        const catalogIds = manifest.installed.map((e) => e.catalogId);
+        const catalogIds = manifest.installed
+          .map((e) => e.catalogId)
+          .filter((id): id is string => typeof id === "string" && id.length > 0);
+        const skipped = manifest.installed.length - catalogIds.length;
+        if (skipped > 0) {
+          logInfo(`command codemint.sync: skipped ${skipped} entry/entries with missing catalogId`);
+        }
+        if (!catalogIds.length) {
+          vscode.window.showWarningMessage("CodeMint: No valid catalog IDs in manifest.");
+          return;
+        }
         const { items } = await catalogSync(catalogIds, token);
         const byCatalogId = new Map<string, CatalogItem | null>();
         catalogIds.forEach((id, i) => byCatalogId.set(id, items[i] ?? null));
@@ -53,10 +63,12 @@ export function registerSyncCommand(context: vscode.ExtensionContext): void {
           await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(fullPath)));
           const body = writeContent(remote.content, remote.title, remote.type, entry.tool as "cursor" | "cline" | "windsurf" | "continue" | "copilot" | "claude" | "codex");
           await vscode.workspace.fs.writeFile(vscode.Uri.file(fullPath), Buffer.from(body, "utf8"));
-          manifest = updateEntry(manifest, entry.catalogId, {
-            version: remote.catalogVersion,
-            checksum: remote.checksum ?? null,
-          });
+          if (typeof entry.catalogId === "string" && entry.catalogId.length > 0) {
+            manifest = updateEntry(manifest, entry.catalogId, {
+              version: remote.catalogVersion,
+              checksum: remote.checksum ?? null,
+            });
+          }
           updated++;
           channel.appendLine(`Updated ${entry.slug} to ${remote.catalogVersion}`);
         }

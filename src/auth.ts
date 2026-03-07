@@ -74,6 +74,8 @@ export async function login(context: vscode.ExtensionContext): Promise<void> {
   await context.globalState.update("codemint.user", { email: user.email, name: user.name });
   logInfo(`auth.login: completed for ${user.email}`);
   vscode.window.showInformationMessage(`CodeMint: Logged in as ${user.email}`);
+  logInfo("Stored token and user; refreshing UI");
+  await new Promise<void>((r) => setTimeout(r, 150));
   await vscode.commands.executeCommand("codemint.refreshSidebar");
   await vscode.commands.executeCommand("codemint.refreshStatusBar");
 }

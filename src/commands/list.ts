@@ -15,13 +15,16 @@ export function registerListCommand(context: vscode.ExtensionContext): void {
         }
         const root = folders[0];
         const manifest = await readManifest(root) ?? getEmptyManifest();
-        if (!manifest.installed.length) {
+        const valid = manifest.installed.filter(
+          (e) => e.path && String(e.path).trim().length > 0
+        );
+        if (!valid.length) {
           vscode.window.showInformationMessage("CodeMint: Nothing installed.");
           return;
         }
 
         const picked = await vscode.window.showQuickPick(
-          manifest.installed.map((e) => ({
+          valid.map((e) => ({
             label: e.slug,
             description: e.ref,
             detail: `${e.tool} · ${e.path}`,
@@ -31,9 +34,14 @@ export function registerListCommand(context: vscode.ExtensionContext): void {
         );
         if (!picked) return;
 
-        const doc = await vscode.workspace.openTextDocument(picked.path);
-        await vscode.window.showTextDocument(doc);
-        logInfo(`command codemint.list: opened ${picked.path}`);
+        try {
+          const doc = await vscode.workspace.openTextDocument(picked.path);
+          await vscode.window.showTextDocument(doc);
+          logInfo(`command codemint.list: opened ${picked.path}`);
+        } catch (openErr) {
+          vscode.window.showErrorMessage("CodeMint: File not found.");
+          logError("command codemint.list: openTextDocument failed", openErr);
+        }
       } catch (e) {
         logError("command codemint.list: failed", e);
         const msg = errorMessage(e);

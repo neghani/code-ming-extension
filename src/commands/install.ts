@@ -39,8 +39,12 @@ export async function installSuggestItem(
   await vscode.workspace.fs.writeFile(vscode.Uri.file(fullPath), Buffer.from(body, "utf8"));
   let manifest = await readManifest(root) ?? getEmptyManifest();
   await ensureManifestDir(root);
+  const catalogId =
+    (catalog.catalogId && String(catalog.catalogId).trim()) ||
+    catalog.id ||
+    `${catalog.type}:${catalog.slug}`;
   const entry: ManifestEntry = {
-    catalogId: catalog.catalogId,
+    catalogId,
     ref: `@${catalog.type}/${catalog.slug}`,
     type: catalog.type,
     slug: catalog.slug,
@@ -52,9 +56,11 @@ export async function installSuggestItem(
   };
   manifest = addEntry(manifest, entry);
   await writeManifest(root, manifest);
-  trackUsage(catalog.id, token).catch((e) => {
-    logWarn(`installSuggestItem: trackUsage failed for ${catalog.id}: ${String(e)}`);
-  });
+  if (catalog.id) {
+    trackUsage(catalog.id, token).catch((e) => {
+      logWarn(`installSuggestItem: trackUsage failed for ${catalog.id}: ${String(e)}`);
+    });
+  }
   await vscode.commands.executeCommand("codemint.refreshSidebar");
   logInfo(`installSuggestItem: wrote ${relPath}`);
   vscode.window.showInformationMessage(`CodeMint: Added ${catalog.title} to ${tool}.`);

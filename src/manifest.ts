@@ -2,6 +2,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import type { Manifest, ManifestEntry } from "./types";
 import { MANIFEST_VERSION, CODEMINT_DIR, MANIFEST_FILE } from "./types";
+import { logWarn } from "./logger";
 
 function getBaseUrl(): string {
   return vscode.workspace.getConfiguration("codemint").get<string>("baseUrl") ?? "https://codemint.app";
@@ -21,7 +22,8 @@ export async function readManifest(root: vscode.WorkspaceFolder): Promise<Manife
       lastSyncAt: parsed.lastSyncAt,
       installed: parsed.installed,
     };
-  } catch {
+  } catch (err) {
+    logWarn("readManifest failed: " + (err instanceof Error ? err.message : String(err)));
     return null;
   }
 }
@@ -40,7 +42,10 @@ export async function writeManifest(root: vscode.WorkspaceFolder, manifest: Mani
 }
 
 export function addEntry(manifest: Manifest, entry: ManifestEntry): Manifest {
-  const next = { ...manifest, installed: manifest.installed.filter((e) => e.catalogId !== entry.catalogId) };
+  const matchesEntry = (e: ManifestEntry) =>
+    (typeof entry.catalogId === "string" && entry.catalogId.length > 0 && e.catalogId === entry.catalogId) ||
+    e.ref === entry.ref;
+  const next = { ...manifest, installed: manifest.installed.filter((e) => !matchesEntry(e)) };
   next.installed.push(entry);
   return next;
 }
@@ -49,6 +54,13 @@ export function removeEntry(manifest: Manifest, catalogId: string): Manifest {
   return {
     ...manifest,
     installed: manifest.installed.filter((e) => e.catalogId !== catalogId),
+  };
+}
+
+export function removeEntryByRef(manifest: Manifest, ref: string): Manifest {
+  return {
+    ...manifest,
+    installed: manifest.installed.filter((e) => e.ref !== ref),
   };
 }
 

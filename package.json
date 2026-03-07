@@ -31,7 +31,8 @@
       { "command": "codemint.list", "title": "CodeMint: List Installed" },
       { "command": "codemint.remove", "title": "CodeMint: Remove" },
       { "command": "codemint.setBaseUrl", "title": "CodeMint: Set app URL" },
-      { "command": "codemint.openSettings", "title": "CodeMint: Open Settings" }
+      { "command": "codemint.openSettings", "title": "CodeMint: Open Settings" },
+      { "command": "codemint.showLogs", "title": "CodeMint: Show logs" }
     ],
     "configuration": {
       "title": "CodeMint",

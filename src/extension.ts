@@ -9,7 +9,7 @@ import { createSidebar } from "./sidebar";
 import { createStatusBar } from "./statusBar";
 import { createExploreView } from "./explore";
 import { registerSettingsCommands } from "./settings";
-import { initializeLogger, logError, logInfo } from "./logger";
+import { getLogger, initializeLogger, logError, logInfo } from "./logger";
 
 export function activate(context: vscode.ExtensionContext): void {
   initializeLogger(context);
@@ -21,6 +21,11 @@ export function activate(context: vscode.ExtensionContext): void {
   registerSuggestCommand(context);
   registerListCommand(context);
   registerSettingsCommands(context);
+  context.subscriptions.push(
+    vscode.commands.registerCommand("codemint.showLogs", () => {
+      getLogger().show(true);
+    })
+  );
   createSidebar(context);
   createStatusBar(context);
   createExploreView(context);
@@ -44,6 +49,15 @@ export function activate(context: vscode.ExtensionContext): void {
   };
   context.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(() => { void autoSync(); }));
   void autoSync();
+  const baseUrl = vscode.workspace.getConfiguration("codemint").get<string>("baseUrl") ?? "https://codemint.app";
+  logInfo("baseUrl=" + baseUrl);
+  const hintShown = context.globalState.get<boolean>("codemint.hintShown");
+  if (!hintShown) {
+    getLogger().appendLine(
+      "To use Sync/Suggest/Install run CodeMint: Login from the command palette; logging in only on the website does not sign the extension in."
+    );
+    context.globalState.update("codemint.hintShown", true);
+  }
   logInfo("activate: extension ready");
 }
 

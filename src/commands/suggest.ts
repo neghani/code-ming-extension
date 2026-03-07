@@ -29,7 +29,7 @@ async function deriveTags(root: vscode.WorkspaceFolder): Promise<string[]> {
       await vscode.workspace.fs.stat(uri);
       t.forEach((tag) => tags.add(tag));
     } catch {
-      // not found
+      logInfo("deriveTags: file not found " + file);
     }
   }
   try {
@@ -47,7 +47,7 @@ async function deriveTags(root: vscode.WorkspaceFolder): Promise<string[]> {
     if (deps["typescript"]) tags.add("typescript");
     if (deps["tailwindcss"]) tags.add("tailwind");
   } catch {
-    // ignore
+    logInfo("deriveTags: no package.json or parse failed");
   }
   return Array.from(tags);
 }

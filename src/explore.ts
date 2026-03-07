@@ -3,9 +3,9 @@ import * as vscode from "vscode";
 import { getStoredToken } from "./auth";
 import { itemsSearch, catalogResolve } from "./api";
 import { installSuggestItem } from "./commands/install";
-import { readManifest, getEmptyManifest, writeManifest, removeEntry, ensureManifestDir } from "./manifest";
+import { readManifest, getEmptyManifest, writeManifest, removeEntry, removeEntryByRef, ensureManifestDir } from "./manifest";
 import type { SuggestItem } from "./types";
-import { errorMessage, logError, logInfo } from "./logger";
+import { errorMessage, logError, logInfo, logWarn } from "./logger";
 
 type TabType = "rule" | "prompt" | "skill";
 
@@ -255,7 +255,9 @@ export function createExploreView(context: vscode.ExtensionContext): void {
     const root = vscode.workspace.workspaceFolders?.[0];
     if (!root) return [];
     const manifest = await readManifest(root) ?? getEmptyManifest();
-    return manifest.installed.map((e) => e.catalogId);
+    return manifest.installed
+      .map((e) => e.catalogId)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
   }
 
   function postMessage(payload: unknown): void {
@@ -289,23 +291,29 @@ export function createExploreView(context: vscode.ExtensionContext): void {
     }
   }
 
-  async function removeByCatalogId(catalogId: string): Promise<void> {
-    logInfo(`explore.removeByCatalogId: catalogId=${catalogId}`);
+  async function removeByCatalogId(catalogId: string | null, ref?: string): Promise<void> {
+    logInfo(`explore.removeByCatalogId: catalogId=${catalogId} ref=${ref ?? ""}`);
     const root = vscode.workspace.workspaceFolders?.[0];
     if (!root) {
       vscode.window.showWarningMessage("CodeMint: Open a folder first.");
       return;
     }
     let manifest = await readManifest(root) ?? getEmptyManifest();
-    const entry = manifest.installed.find((e) => e.catalogId === catalogId);
+    const hasValidCatalogId = typeof catalogId === "string" && catalogId.trim().length > 0;
+    const entry = hasValidCatalogId
+      ? manifest.installed.find((e) => e.catalogId === catalogId)
+      : ref
+        ? manifest.installed.find((e) => e.ref === ref)
+        : undefined;
     if (!entry) return;
     const fullPath = path.join(root.uri.fsPath, entry.path);
     try {
       await vscode.workspace.fs.delete(vscode.Uri.file(fullPath));
-    } catch {
-      // file may already be deleted
+    } catch (e) {
+      logWarn("explore remove: delete failed " + (e instanceof Error ? e.message : String(e)));
     }
-    manifest = removeEntry(manifest, catalogId);
+    const entryHasValidCatalogId = typeof entry.catalogId === "string" && entry.catalogId.trim().length > 0;
+    manifest = entryHasValidCatalogId ? removeEntry(manifest, entry.catalogId) : removeEntryByRef(manifest, entry.ref);
     await ensureManifestDir(root);
     await writeManifest(root, manifest);
     await vscode.commands.executeCommand("codemint.refreshSidebar");
@@ -314,6 +322,10 @@ export function createExploreView(context: vscode.ExtensionContext): void {
   }
 
   async function openInFile(item: SuggestItem): Promise<void> {
+    if (!item?.type || !item?.slug) {
+      vscode.window.showErrorMessage("CodeMint: Invalid item.");
+      return;
+    }
     try {
       logInfo(`explore.openInFile: @${item.type}/${item.slug}`);
       if (item.type === "prompt") {
@@ -337,6 +349,10 @@ export function createExploreView(context: vscode.ExtensionContext): void {
   }
 
   function openUrl(item: SuggestItem): void {
+    if (!item?.type || !item?.slug) {
+      vscode.window.showErrorMessage("CodeMint: Invalid item.");
+      return;
+    }
     const base = getBaseUrl().replace(/\/+$/, "");
     const segment = item.type === "rule" ? "rules" : item.type === "prompt" ? "prompts" : "skills";
     const url = `${base}/${segment}/${item.slug}`;
@@ -371,7 +387,8 @@ export function createExploreView(context: vscode.ExtensionContext): void {
             vscode.window.showErrorMessage(`CodeMint: ${err}`);
           }
         } else if (msg.type === "remove" && msg.item) {
-          await removeByCatalogId(msg.item.catalogId);
+          const ref = `@${msg.item.type}/${msg.item.slug}`;
+          await removeByCatalogId(msg.item.catalogId ?? null, ref);
           const installedIds = await getInstalledIds();
           postMessage({ type: "items", tab: currentTab, items: currentItems, installedIds });
         } else if (msg.type === "openFile" && msg.item) {
@@ -404,6 +421,11 @@ export function createExploreView(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("codemint.removeByCatalogId", async (catalogId: string) => {
       try {
+        const validCatalogId = typeof catalogId === "string" && catalogId.trim().length > 0;
+        if (!validCatalogId) {
+          vscode.window.showErrorMessage("CodeMint: Invalid catalog ID.");
+          return;
+        }
         logInfo(`command codemint.removeByCatalogId: ${catalogId}`);
         await removeByCatalogId(catalogId);
       } catch (e) {
@@ -416,22 +438,32 @@ export function createExploreView(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("codemint.openCatalogItemInFile", async (item: SuggestItem) => {
+      if (!item?.type || !item?.slug) {
+        vscode.window.showErrorMessage("CodeMint: Invalid item.");
+        return;
+      }
       try {
         logInfo(`command codemint.openCatalogItemInFile: @${item.type}/${item.slug}`);
         await openInFile(item);
       } catch (e) {
         logError("command codemint.openCatalogItemInFile: failed", e);
+        vscode.window.showErrorMessage("CodeMint: " + errorMessage(e));
       }
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("codemint.openCatalogItemUrl", (item: SuggestItem) => {
+      if (!item?.type || !item?.slug) {
+        vscode.window.showErrorMessage("CodeMint: Invalid item.");
+        return;
+      }
       try {
         logInfo(`command codemint.openCatalogItemUrl: @${item.type}/${item.slug}`);
         openUrl(item);
       } catch (e) {
         logError("command codemint.openCatalogItemUrl: failed", e);
+        vscode.window.showErrorMessage("CodeMint: " + errorMessage(e));
       }
     })
   );

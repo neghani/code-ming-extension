@@ -1,5 +1,6 @@
 import * as path from "path";
 import * as vscode from "vscode";
+import { getStoredToken } from "./auth";
 import { readManifest, getEmptyManifest } from "./manifest";
 import type { ManifestEntry } from "./types";
 import { errorMessage, logError, logInfo } from "./logger";
@@ -74,8 +75,11 @@ export function createSidebar(context: vscode.ExtensionContext): void {
       } else {
         cachedInstalled = [];
       }
-      const token = await context.secrets.get("codemint.token");
+      const token = await getStoredToken(context);
       const user = context.globalState.get<{ email: string }>("codemint.user");
+      logInfo(
+        "auth state: token=" + (token ? "present" : "absent") + " user=" + (user ? "present" : "absent") + (user?.email ? " as " + user.email : "")
+      );
       cachedStatus = token && user ? `Logged in as ${user.email}` : "Not logged in";
       emitter.fire(undefined);
     } catch (e) {

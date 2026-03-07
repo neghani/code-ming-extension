@@ -10,11 +10,17 @@ function trimTrailingSlash(s: string): string {
   return s.replace(/\/+$/, "");
 }
 
+let baseUrlLogged = false;
+
 async function request<T>(
   path: string,
   opts: { method?: string; body?: unknown; token?: string | null }
 ): Promise<T> {
   const base = trimTrailingSlash(getBaseUrl());
+  if (!baseUrlLogged) {
+    logInfo("api baseUrl=" + base);
+    baseUrlLogged = true;
+  }
   const url = path.startsWith("http") ? path : `${base}${path.startsWith("/") ? path : `/${path}`}`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (opts.token) headers["Authorization"] = `Bearer ${opts.token}`;
@@ -60,6 +66,11 @@ async function request<T>(
     if (res.status === 401) throw new Error("Not logged in or token expired. Run CodeMint: Login.");
     if (res.status === 404) throw new Error("Rule/skill not found. Check ref or visibility.");
     if (res.status === 429) throw new Error("Too many requests. Try again later.");
+    if (res.status === 503) {
+      const hint =
+        "Search unavailable. If you're using a local app, ensure the app's database is running and DATABASE_URL is set.";
+      throw new Error(hint);
+    }
     throw new Error(`API error (${res.status}): ${msg || "Request failed"}`);
   }
   logInfo(`api.request: success ${method} ${url} status=${res.status}`);
@@ -120,16 +131,20 @@ export async function catalogSync(
   catalogIds: string[],
   token?: string | null
 ): Promise<{ items: (CatalogItem | null)[] }> {
-  if (catalogIds.length > 100) throw new Error("Max 100 catalog IDs per sync.");
+  const sanitized = catalogIds.filter(
+    (id): id is string => typeof id === "string" && id.trim().length > 0
+  );
+  if (sanitized.length > 100) throw new Error("Max 100 catalog IDs per sync.");
   const res = await request<{ items: (CatalogItem | null)[] }>("/api/catalog/sync", {
     method: "POST",
-    body: { catalogIds },
+    body: { catalogIds: sanitized },
     token,
   });
   return { items: res.items ?? [] };
 }
 
 export async function trackUsage(itemId: string, token?: string | null): Promise<void> {
+  if (!itemId || String(itemId).trim() === "") return;
   try {
     await request<{ ok: boolean }>(`/api/items/${encodeURIComponent(itemId)}/track`, {
       method: "POST",
